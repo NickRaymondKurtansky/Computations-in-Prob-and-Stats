@@ -1,0 +1,226 @@
+---
+title: "Homework 2"
+author: "Nick Kurtansky"
+date: "1/26/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1: Inverse CDF method for random number generation
+Weibull $(a, b)$ distribution, parameters $a > 0$ and $b > 0$ has the following probability density function:
+
+$$f(x)=ab^{-a}x^{a-1} e^{-(x/b)^a},~x>0.$$
+
+#### 1.a Obtain the cumulative density function (CDF).
+
+$F(x) = 1 - e^{-(x/b)^a}$
+
+for x > 0, 0 elsewhere.
+
+#### 1.b Solve $U = F(X)$ for $X$.
+
+$e^{-(x/b)^a} = 1-U$
+
+$(x/b)^a = ln(1/(1-U))$
+
+$x = b *\sqrt[a]{ln(1/(1-U))}$n
+
+#### 1.c Suppose that $U=0.7$ is generated. Given $a=1$ and $b=1$, What is $X$?
+
+$x= 1 (ln(1/(1-.7)) = ln(1/.3) = 1.20397$
+
+Note: Since $1 – U \sim U(0, 1)$ as well, can replace $1 – U$ by $U$ to get the final algorithm.
+
+#### 1.d Draw the histogram from 1000 sampled Weibull $(a=1,b=1)$ random variables based on 1.b.
+```{r}
+u.sample <- runif(1000,0,1)
+x.sample <- c()
+for(u in u.sample){
+  x <- (log(1/u))
+  x.sample <- c(x.sample, x)
+}
+hist(x.sample, nclass=40, main="Estimated PDF of Weibull(a=1, b=1), n=1000")
+```
+
+
+## Problem 2: Inverse CDF method for random number generation
+
+x  | p(x) | F(x) | U
+---- | ---- | ---- | ----
+-1 | .6 | .6 | [0,.6)        
+2.5 | .3 | .9 | [.6, .9)
+4 | .1 | 1 | (.9,1]
+
+If $U=0.63$, then $X = 2.5$.
+
+
+## Problem 3
+
+Determine the number of days between the following datas: January 1 in the year 2018, and January 1 in the year 2028.
+
+#### 3.a Write your own R function called, countdays.
+```{r}
+countdays <- function(date1,date2){
+  # number of days in each month
+  month.days <- c(31,28,31,30,31,30,31,31,30,31,30,31)
+  
+  # Break apart the dates into days/month/years components
+  date1.d <- as.numeric(substr(date1, 1, 2))
+  date1.m <- as.numeric(substr(date1, 4, 5))
+  date1.y <- as.numeric(substr(date1, 7, 10))
+  date2.d <- as.numeric(substr(date2, 1, 2))
+  date2.m <- as.numeric(substr(date2, 4, 5))
+  date2.y <- as.numeric(substr(date2, 7, 10))
+  
+  # Initialize the number of days
+  num.days <- 0
+  
+  # Find the number of full years between them
+  year.dif <- date2.y - date1.y
+  num.days <- num.days + 365*year.dif
+
+  # Find the difference in the month component
+  month.dif = date2.m - date1.m
+  days.of.month.dif <- sum(month.days[1:date2.m])-sum(month.days[1:date1.m])
+  num.days <- num.days + days.of.month.dif
+
+  # Find the difference in the day component
+  day.dif = date2.d - date1.d
+  num.days <- num.days + day.dif
+  
+  # Account for leap years
+  # Find eligible years
+  years.covered <- seq(from=date1.y, to=date2.y, by=1)
+  if(date1.m > 2){
+    years.covered <- years.covered[-1]
+  }
+  if(date2.m < 2 | (date2.m == 2 & date2.d < 29)){
+    years.covered <- years.covered[-length(years.covered)]
+  }
+  # Find number of leap years in remaining interval
+  num.leaps <- 0
+  for(y in years.covered){
+    if(y %% 4 != 0){
+      next
+    }
+    if(y %% 100 != 0){
+      num.leaps <- num.leaps + 1
+    } else if(y %% 400 == 0){
+      num.leaps <- num.leaps + 1
+    }
+  }
+  num.days <- num.days + num.leaps
+  return(num.days)
+}
+
+date.1 <- "01-01-2018"
+date.2 <- "01-01-2028"
+countdays(date.1, date.2)
+```
+
+#### 3.b Use the built-in R function as.Date to compute.
+```{r warning=FALSE}
+date.1 <- "01-01-18"
+date.2 <- "01-01-28"
+as.Date(date.2,"%m-%d-%y") - as.Date(date.1,"%m-%d-%y")
+```
+
+
+## Problem 4
+
+#### 4.a Write an R function, f4, that prints, with their row and column labels, only those elements of a correlation matrix for which $|\mbox{correlation}|\geq 0.9$.
+```{r}
+f4 <- function(df){
+  # establish a null n*n matrix
+  n <- ncol(df)
+  n.names <- colnames(df)
+  m.result <- matrix(nrow = n, ncol = n)
+
+  # loop through all correlation permutations
+  for(i in 1:n){
+    for(j in 1:n){
+      i.j.corr <- cor(df[i], df[j])
+      m.result[i,j] <- i.j.corr
+    }
+  }
+  rownames(m.result) <- n.names
+  colnames(m.result) <- n.names
+  return(m.result)
+}
+```
+
+#### 4.b Using cars data, print the resuluts of f4.
+```{r}
+data(cars)
+f4(cars)
+```
+
+
+## Problem 5
+
+#### 5.a Derive the mean and variance of the Binomial distribution $(n,p)$.
+$X = \sum\limits_{i=1}^n x_i$
+
+$E(X) = E(\sum\limits_{i=1}^n x_i) = \sum\limits_{i=1}^n E(x_i) = \sum\limits_{i=1}^n 1*p(x_i=1) + 0*p(x_i=0) = \sum\limits_{i=1}^n p = np$
+
+$Var(X) = \sum\limits_{i=1}^n [E(x_i^2) - E(x_i)^2] = \sum\limits_{i=1}^n [1^2p + 0^2(1-p) - (1*p + 0(1-p))^2] = \sum\limits_{i=1}^n p - p^2 = \sum\limits_{i=1}^n p(1-p) = np(1-p)$
+
+#### 5.b Write an R function, f5, that simulates a student guessing at a True-False test consisting of 40 questions.
+```{r}
+f5 <- function(){
+  options <- c(TRUE, FALSE)
+  answers <- sample(options, 40, replace=TRUE)
+  points <- 0
+  log <- c()
+  
+  # simulate guessing
+  for(i in 1:40){
+    guess <- sample(options, 1)
+    log <- c(log, guess)
+    if(guess == answers[i]){
+      points <- points + 1
+    }
+  }
+  return(points)
+}
+```
+
+#### 5.c Compute the number of student’s correct answers. Assuming $n=40$ and $p=0.5$, compare with the theoretical values.
+```{r}
+f5()
+```
+The expected value of Binomial(n=40, p=.5) = 20. We expect the student score 20 points. If there were more questions, the simulated result would more often be closer to the theoretical expected value.
+
+
+## Problem 6. (optional)
+
+##### 6.a
+$P(x=k)=(1-p)^{k-1}p$
+
+$F(x)=1-P(X>x)$
+
+$F(x)=1-\sum\limits_{i=x+1}^{infinity}(1-p)^{s-1}p$
+
+$F(x)=1-(1-p)^xp-(1-p)^{x+1}p-...$
+
+$F(x)=1-(1-p)^xp[(1-p)^0+(1-p^1+(1-p)^2+...]$
+
+$F(x)=1-(1-p)^xp[1/(1-(1-p))]$
+
+$F(x)=1-(1-p)^xp/p=1-(1-p)^x=U$
+
+$(1-p)^x=1-U$
+
+$x=log_{1-p}(1-U)$
+
+For p=.2, U=.62, $x=log_{.8}(.58)=2.44115$
+
+##### 6.b
+```{r}
+u.sample <- runif(1000,0,1)
+x.sample <- log(x=1-u.sample, base=1-.2)
+hist(x.sample)
+```

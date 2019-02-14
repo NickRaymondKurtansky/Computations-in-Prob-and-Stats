@@ -1,0 +1,103 @@
+---
+title: "STT461 - Big Data Computation Project: Identifying True Signals"
+author: "Nick Kurtansky"
+date: "4/26/2018"
+output: pdf_document
+---
+
+```{r include=FALSE}
+library(MASS)
+library(dplyr)
+```
+# Simulation
+## Description
+In order to demonstrate Sure Independence Screening (SIS), we can produce a data set whose true response signal to varibles are known. 
+
+We will consider p variables X such that their association with the response variable Y is described by true beta values (B1, B2, B3, B4, B5, ..., Bp) = (5, 5, 5, 0, 0, ..., 0) - hence, only the first 3 are significantly associated with the Y. X is generated using multivariate normal distribution such that n=the number of subjects/observations and p=the number of variables we consider. The variables in X will be correlated with eachother by RHO; higher the rho, the harder it is to identify true variables, which leads to higher MMS. A linear model is fitted to calculate the beta value bi for each xi. The vector of betas B is then rearranged from largest to smalles bi, and the MMS is calculated as the highest rank of (b1, b2, b3), which we know to be associated with the true varibles (x1, x2, x3).
+
+For each combination of (n,p,rho), we will do this 200 times and take the median MMS.
+
+## Code
+```{r cache=TRUE}
+#initialize the result table
+N <- c(20, 20, 20, 70, 70, 70, 20, 20, 20, 70, 70, 70)
+P <- c(100, 100, 100, 100, 100, 100, 1000, 1000, 1000, 1000, 1000, 1000)
+RHO <- c(0, .5, .9, 0, .5, .9, 0, .5, .9, 0, .5, .9)
+Median_MMS <- rep(NA, 12)
+MMS_table <- data.frame(N, P, RHO, Median_MMS)
+#loop through the 6 (n,p,rho) combinations
+for(r in 1:nrow(MMS_table)){
+  #pick out the correct set of (n,p,rho) for each row of MMS_table of median MMS
+  n <- MMS_table$N[r]
+  p <- MMS_table$P[r]
+  rho <- MMS_table$RHO[r]
+  #initialize a vector of MMS
+  mms <- rep(NA, 200)
+  #generate 200 MMS for this set of (n,p,rho) - we will record the median for the MMS_table
+  for(m in 1:200){
+    #STEP 1: GENERATE X
+    cov.matrix <- matrix(rho, p, p)
+    for(i in 1:p){
+      for(j in 1:p){
+        if(i == j){
+          cov.matrix[i,j] <- 1
+        }
+      }
+    }
+    X <- mvrnorm(n, mu=rep(0,p), Sigma=cov.matrix)
+    #STEP 2: GENERATE Y
+    error <- rnorm(n, 0, 1)
+    Y <- 5*X[,1] + 5*X[,2] + 5*X[,3] + error 
+    #STEP 3: PERFORM SIS
+    coef <- rep(NA, p)
+    id <- seq(1:p)
+    B <- data.frame(id, coef)
+    for(i in 1:p){
+      B$coef[i] <- abs(lm(Y~X[,i])$coefficients[2])
+    }
+    ranks <- (abs(p+1-rank(B$coef)))
+    B$rank <- ranks
+    #SETP4: MMS
+    MMS <- max(B[1:3,3])
+    mms[m] <- MMS
+  }
+  #record the median MMS for this set of (n,p,rho) into its respective table
+  MMS_table$Median_MMS[r] <- median(mms)
+}
+```
+
+## Result
+```{r echo=FALSE}
+MMS_table
+```
+
+# Application
+## Description
+The high-density Affymetrix oligonucleotide arrays were previously analyzed in Golub et al. (1999). In our data set there are 7129 genes and 72 samples from two classes of Leukemia: 47 in class ALL (acute lymphocytic leukemia) and 25 in class AML (acute mylogenous leukemia). The goal is to find the top 10 predictor genes that identify the correct Leukemia type.
+
+## Code
+```{r warning=FALSE}
+#load data and sort by cancer strain
+leuk <- read.csv("leukemia.csv", header=TRUE)
+p.leuk <- ncol(leuk)
+#Y ~ 0 if all, 1 if aml
+Y <- ifelse(leuk$y == "ALL", 0, 1)
+X <- leuk %>% select(3:p.leuk)
+p <- ncol(X)
+#perform SIS
+  coef <- rep(NA, p)
+  id <- seq(1:p)
+  B <- data.frame(id, coef)
+  for(i in 1:p){
+    B$coef[i] <- abs(glm(Y~X[,i], family=binomial())$coefficients[2])
+  }
+  ranks <- (abs(p+1-rank(B$coef)))
+  B$rank <- ranks
+```
+
+## Result - identify top 10 genes
+```{r}
+top_10 <- B[head(order(B$rank), 10),]
+top_10_id <- top_10$id + 2
+names(leuk)[top_10_id]
+```

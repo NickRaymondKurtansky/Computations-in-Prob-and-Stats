@@ -1,0 +1,136 @@
+---
+title: 'HW1: Data manipulation'
+author: "Nick Kurtansky"
+date: "1/19/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(ggplot2)
+library(tidyr)
+library(RCurl)
+```
+
+## Problem 1.
+
+### 1.a
+```{r}
+?chickwts
+data(chickwts)
+head(chickwts)
+```
+I found this data set by typing in '?chick' into the console, and it recommended me the data set 'chickwts'.
+
+### 1.b
+```{r}
+chick <- chickwts
+chick$kg <- chick$weight/1000
+head(chick)
+```
+
+### 1.c
+```{r}
+chick$weightcat <- ifelse(chick$weight < 150, 'light', 'heavy')
+head(chick)
+```
+
+### 1.d
+```{r}
+# minimum
+min(chick$weight)
+
+# maximum
+max(chick$weight)
+
+# mean
+mean(chick$weight)
+
+# median
+median(chick$weight)
+```
+
+### 1.e
+```{r}
+boxplot(chick$weight ~ chick$feed, xlab='feed type', ylab='weight (g)', main='distribution of chicken weight by feed type')
+```
+
+## Problem 2.
+
+### 2.a
+```{r}
+x <- seq(from = -pi, to = pi, length.out = 60)
+```
+
+### 2.b
+```{r}
+y <- sin(x)
+```
+
+### 2.c
+```{r}
+z <- cos(x)
+```
+
+### 2.d
+```{r}
+data <- data.frame(x,y,z)
+colnames(data) <- c("x", "sin(x)", "cos(x)")
+data <- gather(data, key='sin_or_cos', value='value', -x)
+
+#ggplot() + geom_point(aes(x,y)) + geom_line(aes(x,y))
+ggplot(data=data[data$sin_or_cos=="sin(x)",], aes(x=x, y=value)) + geom_point(aes(color=sin_or_cos), show.legend=FALSE) + scale_color_manual(breaks = c('sin(x)','cos(x)'), values = c("black", "red")) + geom_line(aes(color=sin_or_cos), show.legend=FALSE) + labs(y='y')
+```
+
+### 2.e
+```{r}
+ggplot(data=data, aes(x=x, y=value)) + geom_point(aes(color=sin_or_cos), show.legend = FALSE) + scale_color_manual(breaks = c('cos(x)','sin(x)'), values = c("red", "black")) + geom_line(aes(color=sin_or_cos), show.legend = FALSE)
+```
+
+### 2.f
+```{r}
+ggplot(data=data, aes(x=x, y=value)) + geom_point(aes(color=sin_or_cos)) + scale_color_manual(breaks = c('cos(x)','sin(x)'), values = c("red", "black")) + geom_line(aes(color=sin_or_cos))
+```
+
+## Problem 3.
+
+### 3.a
+```{r}
+crab_dat <- read.csv(file="crab_raw.csv", header=TRUE, sep = "")
+
+head(crab_dat)
+summary(crab_dat$weight)
+```
+
+### 3.b
+```{r}
+unique(crab_dat$x1)
+unique(crab_dat$x2)
+unique(crab_dat$x3)
+
+crab_dat <- crab_dat[,-c(6,7,8)]
+crab_dat$color <- as.character(crab_dat$color)
+
+head(crab_dat)
+```
+
+### 3.c
+```{r}
+colnames(crab_dat)[5] <- "weight1"
+crab_dat$weight2 <- rep(NA, nrow(crab_dat))
+med_weight <- median(crab_dat$weight1)
+crab_dat$weight2 <- ifelse(crab_dat$weight1 < med_weight, "light", "heavy")
+
+head(crab_dat)
+```
+
+### 3.d
+```{r}
+save(crab_dat, file = "clin.rda")
+write.csv(crab_dat, file="clin.csv")
+```
+
+

@@ -1,0 +1,194 @@
+---
+title: "Homework 3"
+author: "Nick Kurtansky"
+date: "2/11/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(ggplot2)
+```
+
+## Problem 1
+Use the inverse transformation method to generate a random sample of size 1000 from the Laplace distribution.
+```{r}
+# let X be distributed by Leplace(0,1)
+u <- runif(1000, 0, 1)
+x <- rep(NA, 1000)
+for(i in 1:length(u)){
+  # if less than location parameter 0, F(U) follows:
+  if(1*log(2*(u[i]))+0 <= 0){
+    x[i] <- 1*log(2*(u[i]))+0
+  } else{ # if greater than the location parameter 0, F(U) follows:
+    x[i] <- -1*log(2-2*(u[i]))+0
+  }
+}
+
+# distribution of the generated sample
+hist(x)
+```
+
+## Problem 2
+Generate 100000 samples from Beta distribution with parameter (2,3)
+### 2.a First write an R code to draw the beta (2,3) distribution.
+```{r}
+par(pty="s")
+x <- seq(0,1,length=1000)
+beta <- function(x){return(factorial(2+3)/(factorial(2)*factorial(3)) * x^(2-1) * (1-x)^(3-1))}
+plot(x,beta(x), type="l", main="Probability Density Distribution")
+```
+
+### 2.b Write an R code to implement rejection sampling to obtain 100000 samples from X.
+```{r}
+# the maximum of this distribution is 3/2, so we will set g(x) be uniform, and let c be 1.5, so t(x)=1.5/(1-0) for x in [0,1]
+
+# uniform samples
+y <- runif(150000)
+u <- runif(150000)
+# acceptance ratio
+ratio <- (factorial(2+3)/(factorial(2)*factorial(3)) * y^(2-1) * (1-y)^(3-1)) / (1.5)
+
+# build acceptance data.frame
+accept <- ifelse(u <= ratio, TRUE, FALSE)
+est.dist <- data.frame(y, accept)
+```
+
+### 2.c Plot the results along with the true distribution.
+```{r}
+par(pty="s")
+hist(est.dist$y[est.dist$accept == TRUE], main="Histogram of X", xlab="X", breaks=seq(0,1,.01))
+x=seq(0,1,length=100)
+lines(x, beta(x)*1000)
+```
+
+### 2.d Compare sample versus theoretical quantiles.
+```{r}
+quantiles <- seq(.1,.9,.1)
+QHat <- quantile(est.dist$y[est.dist$accept==TRUE], quantiles)
+Q <- qbeta(quantiles, 2, 3)
+rbind(QHat, Q)
+```
+
+### 2.e Draw the stacked histogram of all the sampled values together to see how much wasted data there are.
+```{r}
+ggplot(data=est.dist) + geom_histogram(aes(x=y, fill=accept), binwidth = .01)
+```
+
+
+## Problem 3: Compute a Monte Carlo estimate of the following integral:
+$\int_{0}^{\pi/3}sin(t) dt$
+
+###### Monty Carlo Estimate of the Integral
+```{r}
+set.seed(14)
+# number of samples from uniform
+n=10000
+# samples from f(x)
+u <- runif(n, 0, pi/3)
+# function g(x)
+gx <- sin(u)
+# MC method result
+thetahat <- (pi/3 - 0) * sum(gx)/n
+thetahat
+```
+
+###### Actual value of the Integral
+$\int_{0}^{\pi/3}sin(t) dt = -cos(t) |_{0}^{\pi/3} = -cos(\pi/3) + cos(0) = -.5 + 1 = .5$
+
+The Monty Carlo integration of 10,000 samples produced an estimation for the integral that was less than .005 off from the actual value.
+
+
+## Problem 4
+Compute a Monte Carlo estimate of the standard normal cdf, by generating from the Uniform (0, x) distribution. Compare your estimates with the normal cdf function pnorm. Compute an estimate of the variance of your Monte Carlo estimate of F(2), and a 95% confidence interval for F(2).
+```{r}
+set.seed(10)
+  # number of samples
+n = 100000
+  # let h(y) = -1/y+3
+  # y~unif(0,1)
+y = runif(n, 0, 1)
+  # g[h(y)]*h'(y)
+ghx = (1/sqrt(2*pi)) * exp(-1*(-1/y+3)^2/2) * (1/y^2)
+thetahat <- (1-0) * sum(ghx)/n
+
+  # estimated value:
+thetahat
+
+  # actual value:
+pnorm(2, 0, 1)
+
+  # or simply use the fact that the area under the curve from -inf to 0 is equal to 0.
+y <- runif(n,0,2)
+ghy <- (1/sqrt(2*pi)) * exp(-y^2/2)
+.5+(2-0)*sum(ghy)/n
+```
+
+The monte carlo estimate for I(2) = .97915, which is less than .002 off from the actual value.
+
+```{r}
+# estimate variance
+se = sd(ghx) / sqrt(n)
+se
+
+# confidence interval
+zval=qnorm(.975, 0, 1) 
+lower.bound = thetahat-se*zval 
+upper.bound = thetahat+se*zval
+CI <- list(lower.bound, upper.bound)
+names(CI) <- c("Lower Bound", "Upper Bound")
+CI
+```
+
+
+## Problem 5
+Find two importance functions f1 and f2 that are supported on $(1, \infty)$ and are ‘close’ to the following function:
+
+$g(x) = x^2  e^{-x^2 / 2} / \sqrt{2 \pi}, x>1$
+
+Which of your two importance functions should produce the smaller variance in estimating $\int_ {1} ^ {\infty} g(x) dx$ by importance sampling? Explain.
+
+Let $f_1 (x) = N(1,1) = e^{-(x-1)^2/2} / \sqrt{2 \pi}$
+
+Let $f_2 (x) = Gamma(3/2, 2) = 2^{3/2} / \gamma({3/2}) * x^{3/2 - 1} * e^{-2x}$
+
+```{r}
+# initialize output table
+thetahat <- c(NA, NA)
+se <- c(NA, NA)
+output <- data.frame(thetahat, se)
+rownames(output) <- c("f1", "f2")
+
+# f1 = F(1,1)
+n <- 10000
+  # sample from f1
+x <- rnorm(n,1,1)
+  # establish functions g(x), f(x), and phi(x)
+g <- x^2 * exp(-x^2 / 2) / sqrt(2*pi)
+f <- as.numeric(x >= 1)
+phi <- exp(-(x-1)^2 / 2) / sqrt(2*pi)
+  # combine and take the mean
+gfphi <- g * f / phi
+output[1,1] <- mean(gfphi)
+output[1,2] <- sd(gfphi) / sqrt(n)
+
+# f2 = Gamma(3/2, 2)
+  # sample from f2
+x <- rgamma(n, 3/2, 2)
+  # establish functijons g(x), f(x), and phi(x)
+g <- g <- x^2 * exp(-x^2 / 2) / sqrt(2*pi)
+f <- as.numeric(x >= 1)
+phi <- 2^(1.5) / gamma(1.5) * x^(1.5-1) * exp(-2*x)
+  # combine and take the mean
+gfphi <- g * f / phi
+output[2,1] <- mean(gfphi)
+output[2,2] <- sd(gfphi) / sqrt(n)
+
+output
+```
+
+The function $f_1(x)$ has a small variance in estimating theta hat because it is more proportional to the function $g(x)$.
+
