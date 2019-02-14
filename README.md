@@ -9,8 +9,8 @@ Kurtansky_Nick1.Rmd: Simple manipulation of datasets
 
 Kurtansky_Nick2.Rmd: Inverse CDF method for random number generation and writing functions for simple simulations
 
-Kurtansky_Nick3.Rmd: Rejection sampling and Monte Carlo integration
+Kurtansky_Nick3.Rmd: Rejection sampling and Monte Carlo estimation and importance sampling
   
-Kurtansky_Nick4.Rmd: 
+Kurtansky_Nick4.Rmd: Regression modelling and bootstrapping
  
-Kurtansky_Nick5.Rmd: 
+Kurtansky_Nick5.Rmd: Permutation testing
